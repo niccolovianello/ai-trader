@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trader paper</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#fafaf8;--card:#fff;--fg:#1d1d1b;--muted:#6b6b66;--line:#e2e2dc;--accent:#2a6f4e;--bad:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#1e1e1c;--fg:#ecece8;--muted:#9a9a93;--line:#2c2c2a;--accent:#6cc79a;--bad:#f2b8b5}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,sans-serif}
+main{max-width:960px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-size:20px;margin:0}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:28px 0 8px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.muted{color:var(--muted)}.bad{color:var(--bad)}
+.big{font-size:34px;font-weight:600;margin:0;font-variant-numeric:tabular-nums}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.curve{width:100%;height:140px;color:var(--accent);display:block}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+td,th{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:500;color:var(--muted)}
+.wrap{overflow-x:auto}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.center{text-align:center;padding:64px 0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Trader paper <span class="tag">Alpaca paper</span></h1>
+    <div><span id="who" class="muted"></span> <button id="logout" hidden>Esci</button></div>
+  </header>
+
+  <section id="signin" class="center" hidden>
+    <p class="muted">Dashboard privata, in sola lettura.</p>
+    <button id="login" class="primary">Accedi con Google</button>
+    <p id="signin-error" class="bad"></p>
+  </section>
+
+  <section id="denied" class="center" hidden>
+    <p class="bad">Questo account non è autorizzato a leggere i dati del trader.</p>
+  </section>
+
+  <section id="setup" class="center" hidden>
+    <p class="muted">Configurazione Firebase mancante: compila <code>web/config.js</code>.</p>
+  </section>
+
+  <section id="app" hidden>
+    <p id="meta" class="muted"></p>
+    <h2>Conto all'ultima sveglia</h2>
+    <div class="grid">
+      <div class="card"><div class="muted">Equity</div><p id="equity" class="big">—</p></div>
+      <div class="card"><div class="muted">P&amp;L giorno</div><p id="pnl" class="big">—</p></div>
+      <div class="card"><div class="muted">Prossima sveglia</div><p id="next" class="big">—</p></div>
+    </div>
+    <h2>Posizioni</h2>
+    <div class="wrap"><table id="positions"></table></div>
+    <h2>Curva</h2>
+    <div id="curve"></div>
+    <h2>Ultima decisione</h2>
+    <div id="decision" class="card"></div>
+    <h2>Storico</h2>
+    <div class="wrap"><table id="history"></table></div>
+  </section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

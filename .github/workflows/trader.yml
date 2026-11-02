@@ -1,0 +1,75 @@
+name: trader
+
+on:
+  schedule:
+    # Wakeups are 09:00, 15:40, 18:30, 21:40 Rome time. GitHub cron is UTC only and often late, so it ticks
+    # every 15 minutes around those times for both CET and CEST; `due.ts` decides whether one is due.
+    # Extra ticks are no-ops; a wakeup more than 60 min late is reported as missed by the next one.
+    - cron: "5,20,35,50 7,8 * * *"
+    - cron: "5,20,35,50 13-21 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "Sveglia da lanciare (0900, 1540, 1830, 2140). Vuoto = quella dovuta adesso."
+        required: false
+        default: ""
+      force:
+        description: "Rifai una sveglia già fatta (gli id impediscono i doppioni)"
+        type: boolean
+        default: false
+
+# One wakeup at a time, never cancelled halfway: the Firestore lease is the second line of defence.
+concurrency:
+  group: trader
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  wakeup:
+    runs-on: ubuntu-latest
+    # Shorter than the Firestore lease (15 min), so a live run never loses its lock.
+    timeout-minutes: 10
+    env:
+      TZ: Europe/Rome
+      TRADER_STORE: firestore
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Sveglia dovuta?
+        id: due
+        if: ${{ !inputs.slot }}
+        run: bun src/cli/due.ts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Installa Claude Code
+        if: ${{ inputs.slot || steps.due.outputs.slot }}
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Sveglia
+        if: ${{ inputs.slot || steps.due.outputs.slot }}
+        run: bun src/cli/once.ts --slot "$SLOT" $FORCE
+        env:
+          SLOT: ${{ inputs.slot || steps.due.outputs.slot }}
+          FORCE: ${{ inputs.force && '--force' || '' }}
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Log della sveglia
+        if: ${{ always() && (inputs.slot || steps.due.outputs.slot) }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 30
+          if-no-files-found: ignore
