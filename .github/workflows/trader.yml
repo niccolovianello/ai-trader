@@ -5,6 +5,7 @@ on:
     # Wakeups are 09:00, 15:40, 18:30, 21:40 Rome time. GitHub cron is UTC only and often late, so it ticks
     # every 15 minutes around those times for both CET and CEST; `due.ts` decides whether one is due.
     # Extra ticks are no-ops; a wakeup more than 60 min late is reported as missed by the next one.
+    # GitHub may skip most of these: cron-job.org calling workflow_dispatch is the main trigger (README, step 8).
     - cron: "5,20,35,50 7,8 * * *"
     - cron: "5,20,35,50 13-21 * * 1-5"
   workflow_dispatch:

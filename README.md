@@ -57,12 +57,23 @@ One-time setup:
    `.github/workflows/pages.yml` publishes `web/` to GitHub Pages on every change.
 7. Stop `bun run schedule` on the Mac (two schedulers would share nothing and both trade), then trigger the *trader*
    workflow by hand once (*Actions → trader → Run workflow*, slot `0900`) to check the whole chain.
+8. **External trigger** (the real clock; GitHub's own cron is only a backup, see caveats). Create a fine-grained token
+   (*GitHub → Settings → Developer settings → Fine-grained tokens*): owner `niccolovianello`, only this repository,
+   permission *Actions: Read and write*. Then on [cron-job.org](https://cron-job.org) create one job:
+   - URL `https://api.github.com/repos/niccolovianello/ai-trader/actions/workflows/trader.yml/dispatches`, method `POST`
+   - headers `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`,
+     `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`
+   - body `{"ref":"main"}` (no slot: `due.ts` decides, so extra ticks are no-ops)
+   - time zone `Europe/Rome`, custom schedule `0,15,30,40,45,55 9,15,18,21 * * *` (each wakeup plus a few retries)
+
+   When the token expires the job fails (cron-job.org emails you) and only GitHub's cron is left.
 
 The dashboard shows the account as of the last wakeup: Alpaca keys never reach the browser.
 
-Caveats: GitHub cron is often 5–30 minutes late, and a wakeup more than 60 minutes late is reported as missed. On a
-public repo GitHub disables scheduled workflows after 60 days without commits (it emails first; re-enable with a click).
-GitHub Pages needs a public repo on the free plan.
+Caveats: GitHub cron is best effort: often 5–30 minutes late, and on a new or quiet repo it can skip almost every tick
+(on the first day it ran once in 21 hours), hence the external trigger. A wakeup more than 60 minutes late is reported
+as missed. On a public repo GitHub disables scheduled workflows after 60 days without commits (it emails first;
+re-enable with a click). GitHub Pages needs a public repo on the free plan.
 
 ## Wakeups (Rome time, US market 15:30–22:00)
 

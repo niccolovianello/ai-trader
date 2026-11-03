@@ -6,3 +6,6 @@ node_modules/
 # personal-use guide, not for the repo
 claude-trader.pdf
 .DS_Store
+
+# GitHub token for the cron-job.org trigger
+ai-trader-token.txt
