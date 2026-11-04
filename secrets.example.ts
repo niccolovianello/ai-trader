@@ -6,5 +6,5 @@ export const secrets = {
   TELEGRAM_BOT_TOKEN: "", // @BotFather → /newbot
   TELEGRAM_CHAT_ID: "", // message the bot, then https://api.telegram.org/bot<TOKEN>/getUpdates
   CLAUDE_CODE_OAUTH_TOKEN: "", // `claude setup-token` — only needed on a server
-  FIREBASE_SERVICE_ACCOUNT: "", // service-account JSON, only with TRADER_STORE=firestore
+  FIREBASE_SERVICE_ACCOUNT: "", // service-account JSON, for TRADER_STORE=firestore and `bun run page`
 };

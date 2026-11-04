@@ -55,7 +55,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;p
 .wrap{overflow-x:auto}.tag a{color:inherit}.tag{display:inline-block;padding:2px 8px;border-radius:99px;border:1px solid var(--line);font-size:12px}
 </style></head><body><main>
 <h1>Trader paper <span class=tag>${flags.fake ? "finto" : `<a href="${ALPACA_DASHBOARD_URL}" target=_blank rel=noopener>Alpaca paper ↗</a>`}</span></h1>
-<p class=muted>Sola lettura · aggiornata ${esc(now.toLocaleString("it-IT", { timeZone: "Europe/Rome" }))} · lock: ${lock ? `run ${esc(lock.lock.runId)} ${lock.alive ? "in corso" : "interrotta"}` : "nessuno"}</p>
+<p class=muted>Sola lettura · dati da ${esc(store.kind)} · aggiornata ${esc(now.toLocaleString("it-IT", { timeZone: "Europe/Rome" }))} · lock: ${lock ? `run ${esc(lock.lock.runId)} ${lock.alive ? "in corso" : "interrotta"}` : "nessuno"}</p>
 <h2>Conto</h2>${account}
 <h2>Curva</h2>${sparkline(hist.filter((b) => b.equity !== null).map((b) => b.equity!))}
 <h2>Prossime sveglie</h2><p>${[next1, next2].filter(Boolean).map((r) => esc(prettyRun(r!))).join(" · ")}</p>

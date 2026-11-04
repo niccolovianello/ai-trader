@@ -26,6 +26,7 @@ Requires [Bun](https://bun.sh) (≥ 1.1). Zero runtime dependencies.
 | `bun run once --slot 1540` | one real wakeup: Alpaca paper, Claude, Telegram |
 | `bun run once --slot 1540 --force` | redo a wakeup already done; deterministic order ids prevent duplicates |
 | `bun run schedule` | stays on, checks every 30 s, runs the due wakeup as a fresh process; status page on http://localhost:8787 |
+| `bun run page` | only the status page on http://localhost:8787, reading the cloud trader's Firestore; never runs a wakeup |
 | `bun run status` | lock, last baton, next wakeup, account |
 | `bun run reconcile` | by hand: what did the interrupted run actually send |
 | `bun src/cli/due.ts` | prints the wakeup due now, if any (used by the workflow) |
