@@ -56,27 +56,106 @@ function renderBaton(b, lock) {
   for (const a of b.alerts ?? []) d.append(el("p", `⚠ ${a}`, "bad"));
 }
 
-function renderHistory(list) {
-  const points = list.filter((b) => b.equity != null).map((b) => b.equity);
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
+}
+
+/** Monotone cubic through the points: smooth, but never bulges past a real value. */
+function smoothPath(xy) {
+  const n = xy.length;
+  if (n < 3) return xy.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join("");
+  const d = [], m = [];
+  for (let i = 0; i < n - 1; i++) d.push((xy[i + 1][1] - xy[i][1]) / (xy[i + 1][0] - xy[i][0]));
+  m.push(d[0]);
+  for (let i = 1; i < n - 1; i++) m.push(d[i - 1] * d[i] <= 0 ? 0 : (2 * d[i - 1] * d[i]) / (d[i - 1] + d[i]));
+  m.push(d[n - 2]);
+  let path = `M${xy[0][0]},${xy[0][1]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = xy[i], [x1, y1] = xy[i + 1], h = (x1 - x0) / 3;
+    path += `C${x0 + h},${y0 + m[i] * h} ${x1 - h},${y1 - m[i + 1] * h} ${x1},${y1}`;
+  }
+  return path;
+}
+
+let curveData = [];
+function renderCurve() {
   const c = $("curve");
   c.replaceChildren();
-  if (points.length < 2) c.append(el("p", "La curva compare dopo due sveglie.", "muted"));
-  else {
-    const min = Math.min(...points), max = Math.max(...points), span = max - min || 1;
-    const ns = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(ns, "svg");
-    svg.setAttribute("viewBox", "0 0 600 140");
-    svg.setAttribute("class", "curve");
-    svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "curva dell'equity");
-    const line = document.createElementNS(ns, "polyline");
-    line.setAttribute("points", points.map((v, i) => `${(i / (points.length - 1)) * 600},${130 - ((v - min) / span) * 120}`).join(" "));
-    line.setAttribute("fill", "none");
-    line.setAttribute("stroke", "currentColor");
-    line.setAttribute("stroke-width", "2");
-    svg.append(line);
-    c.append(svg, el("p", `${usd(min)} – ${usd(max)}`, "muted"));
-  }
+  const pts = curveData;
+  if (pts.length < 2) return c.append(el("p", "La curva compare dopo due sveglie.", "muted"));
+
+  const first = pts[0].equity, last = pts[pts.length - 1].equity, diff = last - first;
+  const tone = diff >= 0 ? "up" : "down";
+  c.className = `card curve-card ${tone}`;
+
+  const head = el("div", null, "curve-head");
+  head.append(el("p", `${diff >= 0 ? "+" : ""}${usd(diff)}`, "big delta"),
+    el("p", `${diff >= 0 ? "▲" : "▼"} ${pct(diff / first)} dal ${run(pts[0].runId).slice(0, 10)} · ${pts.length} sveglie`, "muted"));
+  c.append(head);
+
+  const W = Math.max(c.clientWidth - 32, 260), H = 180, padX = 8, top = 14, bottom = 22;
+  const values = pts.map((p) => p.equity);
+  let min = Math.min(...values, first), max = Math.max(...values, first);
+  const pad = (max - min || Math.abs(max) * 0.001 || 1) * 0.15;
+  min -= pad; max += pad;
+  const x = (i) => padX + (i / (pts.length - 1)) * (W - 2 * padX);
+  const y = (v) => top + (1 - (v - min) / (max - min)) * (H - top - bottom);
+  const xy = pts.map((p, i) => [+x(i).toFixed(1), +y(p.equity).toFixed(1)]);
+  const line = smoothPath(xy);
+
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: "curve", role: "img", "aria-label": "curva dell'equity" });
+  const defs = svgEl("defs", {});
+  const grad = svgEl("linearGradient", { id: "curve-fill", x1: 0, y1: 0, x2: 0, y2: 1 });
+  grad.append(svgEl("stop", { offset: "0%", "stop-color": "currentColor", "stop-opacity": 0.32 }),
+    svgEl("stop", { offset: "100%", "stop-color": "currentColor", "stop-opacity": 0 }));
+  defs.append(grad);
+  const base = y(first);
+  svg.append(defs,
+    svgEl("path", { d: `${line}L${xy.at(-1)[0]},${H - bottom}L${xy[0][0]},${H - bottom}Z`, fill: "url(#curve-fill)" }),
+    svgEl("line", { x1: 0, x2: W, y1: base, y2: base, class: "base" }),
+    svgEl("text", { x: W - 2, y: base - 5, "text-anchor": "end", class: "label" }),
+    svgEl("path", { d: line, class: "line" }));
+  svg.lastChild.previousSibling.textContent = `partenza ${usd(first)}`;
+  xy.forEach(([px, py]) => svg.append(svgEl("circle", { cx: px, cy: py, r: 2.5, class: "dot" })));
+  const [lx, ly] = xy.at(-1);
+  svg.append(svgEl("circle", { cx: lx, cy: ly, r: 5, class: "pulse" }), svgEl("circle", { cx: lx, cy: ly, r: 4.5, class: "last" }));
+
+  const guide = svgEl("line", { y1: top, y2: H - bottom, class: "guide", visibility: "hidden" });
+  const focus = svgEl("circle", { r: 5, class: "last", visibility: "hidden" });
+  svg.append(guide, focus);
+  const tip = el("div", null, "curve-tip");
+  tip.hidden = true;
+  const box = el("div", null, "curve-box");
+  box.append(svg, tip);
+  c.append(box);
+
+  svg.addEventListener("pointermove", (e) => {
+    const r = svg.getBoundingClientRect();
+    const i = Math.round((((e.clientX - r.left) / r.width) * W - padX) / (W - 2 * padX) * (pts.length - 1));
+    const k = Math.min(pts.length - 1, Math.max(0, i)), [px, py] = xy[k];
+    for (const [a, v] of [["x1", px], ["x2", px]]) guide.setAttribute(a, v);
+    focus.setAttribute("cx", px); focus.setAttribute("cy", py);
+    guide.setAttribute("visibility", "visible"); focus.setAttribute("visibility", "visible");
+    tip.replaceChildren(el("b", usd(pts[k].equity)), el("span", `${run(pts[k].runId)} · ${pts[k].slotName}`));
+    tip.hidden = false;
+    tip.style.left = `${(px / W) * 100}%`;
+    tip.style.top = `${(py / H) * 100}%`;
+    tip.classList.toggle("flip", px > W * 0.7);
+  });
+  svg.addEventListener("pointerleave", () => {
+    tip.hidden = true;
+    guide.setAttribute("visibility", "hidden"); focus.setAttribute("visibility", "hidden");
+  });
+}
+let resizeTimer;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderCurve, 150); });
+
+function renderHistory(list) {
+  curveData = list.filter((b) => b.equity != null);
+  renderCurve();
   table("history", ["Sveglia", "Nome", "", "Ordini", "Perché"], [...list].reverse().map((b) => [
     run(b.runId), b.slotName, b.status === "ok" ? "✅" : "❌",
     (b.orders ?? []).map((o) => `${o.side} ${o.qty} ${o.symbol} (${o.outcome})`).join("; ") || "—", b.reasoning,
