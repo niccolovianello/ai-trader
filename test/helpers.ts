@@ -51,6 +51,7 @@ export function harness(opts: { state?: Partial<FakeState>; faults?: FakeFaults;
         brain: new FakeBrain(o.brain),
         now: () => clock.now,
         pid: o.pid,
+        sleep: async () => {},
       };
       return wakeup(deps, { date, slot: slot(hhmm), force: o.force });
     },

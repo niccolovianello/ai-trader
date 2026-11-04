@@ -20,6 +20,8 @@ export interface WakeupDeps {
   log: Logger;
   now: () => Date;
   pid?: number;
+  /** Waits between fill checks; tests pass a no-op. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export interface WakeupOptions {
@@ -138,6 +140,7 @@ export async function wakeup(deps: WakeupDeps, opts: WakeupOptions): Promise<Wak
     // 6. Send, each with a deterministic id so the broker itself refuses a duplicate.
     const sent: SubmittedOrder[] = [];
     for (const o of caged.accepted) sent.push(await submit(deps, runId, o, alert));
+    await waitForFills(deps, sent);
 
     // 7. The new baton, written atomically.
     let after = account;
@@ -179,6 +182,32 @@ export async function wakeup(deps: WakeupDeps, opts: WakeupOptions): Promise<Wak
   } finally {
     await store.releaseLock(me).catch((e) => log.line("lucchetto", `rilascio fallito: ${(e as Error).message}`));
   }
+}
+
+/** Alpaca statuses of an order that can still fill. */
+const OPEN_STATUSES = new Set(["pending_new", "accepted", "new", "partially_filled", "accepted_for_bidding", "calculated"]);
+
+/**
+ * A market order is usually filled a second after it is sent, but the positions are read right after: wait a little,
+ * so the baton (and the dashboard) shows what was bought. Updates each order's status; never fails the wakeup.
+ */
+async function waitForFills(deps: WakeupDeps, sent: SubmittedOrder[]) {
+  const sleep = deps.sleep ?? ((ms: number) => Bun.sleep(ms));
+  let open = sent.filter((o) => o.outcome === "inviato" && o.status && OPEN_STATUSES.has(o.status));
+  for (let waited = 0; open.length && waited < BROKER.fillWaitMs; waited += BROKER.fillPollMs) {
+    await sleep(BROKER.fillPollMs);
+    try {
+      for (const o of open) {
+        const found = await deps.broker.getOrderByClientId(o.clientOrderId);
+        if (found) o.status = found.status;
+      }
+    } catch (e) {
+      deps.log.line("ordine", `controllo esecuzione fallito (${(e as Error).message}): salvo le posizioni come sono`);
+      return;
+    }
+    open = open.filter((o) => OPEN_STATUSES.has(o.status!));
+  }
+  if (open.length) deps.log.line("ordine", `ancora da eseguire dopo ${BROKER.fillWaitMs / 1000}s: ${open.map((o) => `${o.clientOrderId} (${o.status})`).join(", ")}`);
 }
 
 async function submit(

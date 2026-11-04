@@ -19,6 +19,8 @@ export interface FakeFaults {
   loseSubmitResponse?: boolean;
   /** getOrderByClientId fails too (outcome becomes unknown). */
   lookupUnreachable?: boolean;
+  /** Orders stay pending_new and fill only after this many lookups by client id (0 = fill on submit). */
+  fillAfterLookups?: number;
   /** SIGKILL this process right after N orders have been stored. For crash tests. */
   crashAfterSubmits?: number;
 }
@@ -35,6 +37,7 @@ export function freshFakeState(): FakeState {
 export class FakeBroker implements Broker {
   readonly kind = "finto" as const;
   private submits = 0;
+  private lookupsLeft = new Map<string, number>();
 
   constructor(
     private readonly path: string,
@@ -93,7 +96,18 @@ export class FakeBroker implements Broker {
   async getOrderByClientId(id: string): Promise<BrokerOrder | null> {
     this.down();
     if (this.faults.lookupUnreachable) throw new BrokerUnreachableError("broker finto: ricerca ordine fallita");
-    return this.read().orders.find((o) => o.clientOrderId === id) ?? null;
+    const s = this.read();
+    const order = s.orders.find((o) => o.clientOrderId === id) ?? null;
+    const left = this.lookupsLeft.get(id);
+    if (order && left !== undefined) {
+      if (left > 1) this.lookupsLeft.set(id, left - 1);
+      else {
+        this.lookupsLeft.delete(id);
+        fill(s, order);
+        write(this.path, s);
+      }
+    }
+    return order;
   }
 
   async getLatestPrices(symbols: string[]): Promise<Record<string, number>> {
@@ -110,29 +124,20 @@ export class FakeBroker implements Broker {
     }
     const price = s.prices[req.symbol];
     if (!price) throw new Error(`broker finto: prezzo sconosciuto per ${req.symbol}`);
-    const pos = s.positions[req.symbol] ?? { qty: 0, avgEntryPrice: price };
-    if (req.side === "buy") {
-      pos.avgEntryPrice = (pos.avgEntryPrice * pos.qty + price * req.qty) / (pos.qty + req.qty);
-      pos.qty += req.qty;
-      s.cash -= price * req.qty;
-    } else {
-      if (req.qty > pos.qty) throw new Error("broker finto: vendita allo scoperto non ammessa");
-      pos.qty -= req.qty;
-      s.cash += price * req.qty;
-    }
-    if (pos.qty > 0) s.positions[req.symbol] = pos;
-    else delete s.positions[req.symbol];
+    if (req.side === "sell" && req.qty > (s.positions[req.symbol]?.qty ?? 0)) throw new Error("broker finto: vendita allo scoperto non ammessa");
     const order: BrokerOrder = {
       id: crypto.randomUUID(),
       clientOrderId: req.clientOrderId,
       symbol: req.symbol,
       side: req.side,
       qty: req.qty,
-      status: "filled",
-      filledQty: req.qty,
-      filledAvgPrice: price,
+      status: "pending_new",
+      filledQty: 0,
+      filledAvgPrice: null,
       submittedAt: this.now().toISOString(),
     };
+    if (this.faults.fillAfterLookups) this.lookupsLeft.set(req.clientOrderId, this.faults.fillAfterLookups);
+    else fill(s, order);
     s.orders.push(order);
     write(this.path, s);
     this.submits++;
@@ -142,6 +147,22 @@ export class FakeBroker implements Broker {
     if (this.faults.loseSubmitResponse) throw new BrokerUnreachableError("broker finto: risposta persa (timeout)");
     return order;
   }
+}
+
+function fill(s: FakeState, order: BrokerOrder) {
+  const price = s.prices[order.symbol]!;
+  const pos = s.positions[order.symbol] ?? { qty: 0, avgEntryPrice: price };
+  if (order.side === "buy") {
+    pos.avgEntryPrice = (pos.avgEntryPrice * pos.qty + price * order.qty) / (pos.qty + order.qty);
+    pos.qty += order.qty;
+    s.cash -= price * order.qty;
+  } else {
+    pos.qty -= order.qty;
+    s.cash += price * order.qty;
+  }
+  if (pos.qty > 0) s.positions[order.symbol] = pos;
+  else delete s.positions[order.symbol];
+  Object.assign(order, { status: "filled", filledQty: order.qty, filledAvgPrice: price });
 }
 
 function write(path: string, s: FakeState) {

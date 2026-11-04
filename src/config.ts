@@ -41,6 +41,9 @@ export const BROKER = {
   attempts: 3,
   retryDelayMs: 1_000,
   recentOrdersHours: 48,
+  // After sending, wait this long for market orders to fill, so the baton's positions include them.
+  fillWaitMs: 10_000,
+  fillPollMs: 1_000,
 };
 
 export const BRAIN = {

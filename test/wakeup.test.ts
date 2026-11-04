@@ -154,6 +154,23 @@ describe("broker", () => {
     expect(all(h)).toContain("esito sconosciuto");
   });
 
+  test("ordine non ancora eseguito all'invio → la sveglia aspetta e il testimone ha la posizione", async () => {
+    const h = harness({ faults: { fillAfterLookups: 3 } });
+    const r = await h.run("1540");
+    expect(r.baton!.orders.length).toBeGreaterThan(0);
+    expect(r.baton!.orders.every((o) => o.status === "filled")).toBe(true);
+    const bought = r.baton!.orders.filter((o) => o.side === "buy").map((o) => o.symbol);
+    expect(r.baton!.positions.map((p) => p.symbol)).toEqual(expect.arrayContaining(bought));
+  });
+
+  test("ordine che non si esegue mai → la sveglia smette di aspettare e finisce ok", async () => {
+    const h = harness({ faults: { fillAfterLookups: 1_000 } });
+    const r = await h.run("1540");
+    expect(r.status).toBe("done");
+    expect(r.baton!.orders.every((o) => o.status === "pending_new")).toBe(true);
+    expect(r.baton!.positions).toHaveLength(0);
+  });
+
   test("broker giù → la sveglia fallisce pulita: testimone di errore, ❌, lock rilasciato", async () => {
     const h = harness({ faults: { unreachable: true } });
     const r = await h.run("1540");
