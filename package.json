@@ -5,7 +5,6 @@
   "scripts": {
     "once": "bun src/cli/once.ts",
     "schedule": "bun src/cli/schedule.ts",
-    "page": "bun src/cli/page.ts",
     "status": "bun src/cli/status.ts",
     "reconcile": "bun src/cli/reconcile.ts",
     "typecheck": "bunx tsc --noEmit"
