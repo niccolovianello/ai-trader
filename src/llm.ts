@@ -78,9 +78,15 @@ export function buildPrompt(input: BrainInput): string {
   const orders = input.recentOrders.length
     ? input.recentOrders.map((o) => `- ${o.submittedAt} ${o.side} ${o.qty} ${o.symbol} · ${o.status}`).join("\n")
     : "- nessuno";
+  const rejected = input.baton?.rejected ?? [];
+  const rejectedLine = rejected.length
+    ? `\nRifiutati dalle regole del conto (NON eseguiti; non riproporli uguali, correggili o rinuncia): ${rejected
+        .map((r) => `${r.side} ${r.qty} ${r.symbol} → ${r.reason}`)
+        .join("; ")}`
+    : "";
   const baton = input.baton
-    ? `Sveglia ${input.baton.runId} (${input.baton.slotName}).\nPerché: ${input.baton.reasoning}\nProssima mossa: ${input.baton.planNext}`
-    : "Nessun testimone: è la prima sveglia, o il testimone era illeggibile. Riparti dai dati del broker.";
+    ? `Sveglia ${input.baton.runId} (${input.baton.slotName}).\nPerché: ${input.baton.reasoning}\nProssima mossa: ${input.baton.planNext}${rejectedLine}`
+    :"Nessun testimone: è la prima sveglia, o il testimone era illeggibile. Riparti dai dati del broker.";
 
   return `Sei un trader che lavora su un conto DEMO (paper trading Alpaca, soldi finti, prezzi veri).
 Ogni sveglia parte senza memoria: il "testimone" qui sotto è l'unico appunto lasciato dalla sveglia precedente.
