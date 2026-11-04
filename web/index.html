@@ -25,7 +25,7 @@ table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:ta
 td,th{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-weight:500;color:var(--muted)}
 .wrap{overflow-x:auto}
-.tag{display:inline-block;padding:2px 8px;border-radius:99px;border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.tag{text-decoration:none;display:inline-block;padding:2px 8px;border-radius:99px;border:1px solid var(--line);font-size:12px;color:var(--muted)}
 .center{text-align:center;padding:64px 0}
 [hidden]{display:none!important}
 </style>
@@ -33,7 +33,7 @@ th{font-weight:500;color:var(--muted)}
 <body>
 <main>
   <header>
-    <h1>Trader paper <span class="tag">Alpaca paper</span></h1>
+    <h1>Trader paper <a class="tag" href="https://app.alpaca.markets/paper/dashboard/overview" target="_blank" rel="noopener">Alpaca paper ↗</a></h1>
     <div><span id="who" class="muted"></span> <button id="logout" hidden>Esci</button></div>
   </header>
 

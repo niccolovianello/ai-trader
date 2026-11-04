@@ -3,6 +3,7 @@ import { join } from "node:path";
 // The ONLY broker endpoint this program talks to. Do not change it: it is what keeps real money out.
 export const ALPACA_PAPER_URL = "https://paper-api.alpaca.markets";
 export const ALPACA_DATA_URL = "https://data.alpaca.markets";
+export const ALPACA_DASHBOARD_URL = "https://app.alpaca.markets/paper/dashboard/overview";
 
 export const TIMEZONE = "Europe/Rome";
 

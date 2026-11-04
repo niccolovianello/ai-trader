@@ -1,4 +1,4 @@
-import { CLOUD } from "./config.ts";
+import { ALPACA_DASHBOARD_URL, CLOUD } from "./config.ts";
 import { percent, usd } from "./format.ts";
 import { buildRuntime, type Flags } from "./runtime.ts";
 import { nextRunAfter } from "./slots.ts";
@@ -52,9 +52,9 @@ main{max-width:960px;margin:0 auto;padding:24px 16px}
 h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:28px 0 8px}
 .muted{color:var(--muted)}.big{font-size:32px;font-weight:600;margin:0}.curve{width:100%;height:120px;color:var(--accent)}
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-.wrap{overflow-x:auto}.tag{display:inline-block;padding:2px 8px;border-radius:99px;border:1px solid var(--line);font-size:12px}
+.wrap{overflow-x:auto}.tag a{color:inherit}.tag{display:inline-block;padding:2px 8px;border-radius:99px;border:1px solid var(--line);font-size:12px}
 </style></head><body><main>
-<h1>Trader paper <span class=tag>${flags.fake ? "finto" : "Alpaca paper"}</span></h1>
+<h1>Trader paper <span class=tag>${flags.fake ? "finto" : `<a href="${ALPACA_DASHBOARD_URL}" target=_blank rel=noopener>Alpaca paper ↗</a>`}</span></h1>
 <p class=muted>Sola lettura · aggiornata ${esc(now.toLocaleString("it-IT", { timeZone: "Europe/Rome" }))} · lock: ${lock ? `run ${esc(lock.lock.runId)} ${lock.alive ? "in corso" : "interrotta"}` : "nessuno"}</p>
 <h2>Conto</h2>${account}
 <h2>Curva</h2>${sparkline(hist.filter((b) => b.equity !== null).map((b) => b.equity!))}
