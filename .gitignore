@@ -2,6 +2,7 @@ secrets.ts
 state/
 logs/
 node_modules/
+firestore-service-account/
 
 # personal-use guide, not for the repo
 claude-trader.pdf
